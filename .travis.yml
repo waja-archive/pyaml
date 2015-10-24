@@ -1,0 +1,45 @@
+sudo: required
+dist: trusty
+language: c
+
+before_install:
+    # update package list
+    - sudo apt-get update -qq
+    # installneeded packages for uscan
+    - sudo apt-get install -qq --no-install-recommends devscripts libwww-perl
+    # download original tarball
+    - UVERSION=$(dpkg-parsechangelog | grep ^Version | cut -d' ' -f2 | cut -d'-' -f1); uscan --verbose --download-version ${UVERSION} --force-download
+    # remove packages needed for uscan
+    - sudo apt-get purge -qq libwww-perl
+    - sudo apt-get autoremove -qq
+
+install:
+    # install packages needed for mk-build-deps
+    - sudo apt-get install -qq --no-install-recommends devscripts equivs
+    # pull build deps from debian/control
+    - sudo mk-build-deps -ir -t "apt-get --yes --no-install-recommends"
+    # remove packages needed for mk-build-deps
+    - sudo apt-get purge -qq equivs
+    - sudo apt-get autoremove -qq
+
+script:
+    # build the debian package
+    - dpkg-buildpackage -uc -us
+
+after_script:
+    # run lintian after build
+    - sudo apt-get install -qq --no-install-recommends lintian
+    - lintian --info --display-info --display-experimental --pedantic --show-overrides ../*.deb && lintian --info --display-info --display-experimental --pedantic --show-overrides ../*.dsc
+
+env:
+  global:
+    # travis encrypt -r waja-archive/pyaml GITHUBTOKEN=XXXXXX (https://help.github.com/articles/creating-an-access-token-for-command-line-use / http://docs.travis-ci.com/user/encryption-keys/)
+    secure: "oiPWPzR+rSRnE2DpCEMAMT3g5TIg3H0nJ2+zKsQLADjqVJa7lPOTBTRyJtqpL2f9eZPNCW+XJNCzB+oc6B8kyp6jBkbRfogIr+7CswQ65LcgDBjwaJHF7YyV3bFm31q8crQsTUDi404AlWlUI38ZNfBb0ueAz60OuMv9RXaeRNqkpxCp7w2T9IOPVLo0PhveJ8ISUJ5BnbcaRNiUyj8QeqOIdZd7b3WeLBB6akSbCa3XJvkhWC65m2MR+mRj19rL5e8WVOKciRIiP4B1X5skQNqgKKqSfapr0zBAPBp+WgNoYDCiOXvNAHHfU3EnYUSiCod75Ecag3JrB1kixxaSViH7Y2LU7o0kgSnuZ6QvSaVZ3LAuZo9y4mwm59qzZcyvm7852YjbINXVcxg9jXOkHhdlCTqezB3SMWc84+z49y0CJd43Fic676c49SWfB5UU577ailtjxFnDHDFvXplDDYpldhHkxUMF11ZYUCIqs1rMYF99FmTxbXDoFZlt7qwasUzlE4e1t93yNf2HuoSG/Os2anhCE8DjqY64AIf4VtybovwDeYx9G+ciAtBiauM8gXzvmUz9lq9iFSneWBUm1Zv57mRwffQN0PmtoNSdi6vwreb4XnhqhJspLsJ3RfkBVwi7CgbVNEW+YNF7GnlA9acW4+3VW0T1JrTw9RvrvdY="
+
+after_success:
+    - mkdir -p debian/build/release/
+    - for FILE in $(dcmd ../*.changes); do cp ../$(basename $FILE) debian/build/release/; done
+    - debian/bin/github-release.sh "$TRAVIS_REPO_SLUG" "debian/`head -1 debian/changelog | awk -F'[()]' '{print $2}' | awk -F'+' '{print $1}'`" debian/build/release/*
+
+#notifications:
+#  email: false
