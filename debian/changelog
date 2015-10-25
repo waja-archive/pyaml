@@ -1,3 +1,9 @@
+pyaml (15.8.2-2) unstable; urgency=medium
+
+  * [bc3b7a5] Adding debian packaging
+
+ -- Jan Wagner <waja@cyconet.org>  Sun, 25 Oct 2015 11:24:16 +0100
+
 pyaml (15.8.2-1) unstable; urgency=low
 
   * Initial Release.
